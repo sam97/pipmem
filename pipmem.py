@@ -38,6 +38,56 @@ def insert_transaction(action, pkgs):
     conn.close()
 
 
+def show_history():
+    conn = sqlite3.connect(pmdbfile)
+    cur = conn.cursor()
+    cur.execute('SELECT id,timestamp,action FROM transactions \
+                ORDER BY id DESC')
+    transactions = cur.fetchmany(10)
+    conn.close()
+
+    print('Last 10 transactions performed\n')
+    print('ID'.ljust(8), '|', 'Timestamp'.ljust(20), '|', 'Action'.ljust(20))
+    print('-' * 48)
+    for t in transactions:
+        print(str(t[0]).ljust(8), '|', t[1].ljust(20), '|', t[2].ljust(20))
+
+
+def get_transaction(id):
+    conn = sqlite3.connect(pmdbfile)
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM transactions WHERE ID is (?)', (id,))
+    transaction = cur.fetchone()
+    conn.close()
+
+    if transaction:
+        print('ID: %s' % transaction[0])
+        print('Timestamp: %s' % transaction[1])
+        print('Action: %s' % transaction[2])
+        print('venv: %s' % transaction[4])
+        print('Packages:')
+        for pkg in transaction[3].split(','):
+            print('\t%s' % pkg)
+    else:
+        print('No transaction with ID %s found' % id)
+
+
+def undo_transaction(id):
+    conn = sqlite3.connect(pmdbfile)
+    cur = conn.cursor()
+    cur.execute('SELECT action,pkgs FROM transactions WHERE ID is (?)', (id,))
+    transaction = cur.fetchone()
+    conn.close()
+
+    action = transaction[0]
+    pkgs = transaction[1].replace('-', '==')
+
+    if action == 'install':
+        uninstall_package(pkgs)
+    elif action == 'uninstall':
+        install_package(pkgs)
+
+
 def install_package(pkgs):
     output = subprocess.run(['pip', 'install'] + pkgs.split(','),
                             stdout=subprocess.PIPE,
@@ -45,7 +95,7 @@ def install_package(pkgs):
     print(output.stdout)
     for line in output.stdout.split('\n'):
         if 'Successfully installed' in line:
-            ipkgs = line.split(' ')[2:]
+            ipkgs = line.replace('-', '==').split(' ')[2:]
             insert_transaction('install', ipkgs)
             for ipkg in ipkgs:
                 pmlogger.info('Installed %s', ipkg)
@@ -59,10 +109,10 @@ def uninstall_package(pkgs):
     upkgs = []
     for line in output.stdout.split('\n'):
         if 'Successfully uninstalled' in line:
-            upkgs += line.split(' ')[4:]
-            insert_transaction('uninstall', upkgs)
-            for upkg in upkgs:
-                pmlogger.info('Uninstalled %s', upkg)
+            upkgs.append(line.replace('-', '==').split(' ')[4])
+    insert_transaction('uninstall', upkgs)
+    for upkg in upkgs:
+        pmlogger.info('Uninstalled %s', upkg)
 
 
 if __name__ == '__main__':
@@ -73,14 +123,26 @@ if __name__ == '__main__':
     actions.required = True
     action_install = actions.add_parser('install',
                                         help='Install packages.')
+    action_install.add_argument('-p', '--pkgs',
+                                action='store',
+                                help='List of packages to install')
+
     action_uninstall = actions.add_parser('uninstall',
                                           help='Unnstall packages.')
-    ipkgs = action_install.add_argument('-p', '--pkgs',
-                                        action='store',
-                                        help='List of packages to install')
-    upkgs = action_uninstall.add_argument('-p', '--pkgs',
-                                          action='store',
-                                          help='List of packages to install')
+    action_uninstall.add_argument('-p', '--pkgs',
+                                  action='store',
+                                  help='List of packages to install')
+
+    action_history = actions.add_parser('history',
+                                        help='Transaction history data')
+    action_history.set_defaults(func=show_history)
+    action_history.add_argument('-i', '--info',
+                                type=int,
+                                help='Show history details for ID')
+    action_history.add_argument('-u', '--undo',
+                                type=int,
+                                help='Undo transaction with ID')
+
     args = parser.parse_args()
 
     if not os.path.exists(pmdbfile):
@@ -90,3 +152,10 @@ if __name__ == '__main__':
         install_package(args.pkgs)
     elif args.action == 'uninstall':
         uninstall_package(args.pkgs)
+    elif args.action == 'history':
+        if args.info:
+            get_transaction(str(args.info))
+        elif args.undo:
+            undo_transaction(str(args.undo))
+        else:
+            show_history()
