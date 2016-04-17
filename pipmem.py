@@ -99,12 +99,24 @@ def undo_transaction(id):
         install_packages(pkgs)
 
 
-def install_packages(pkgs):
+def install_packages(pkgs, isupgrade=False):
     """ Use pip to install the given packages. """
+
+    # Predefine pip commands being used.
+    installcmd = 'pip install'.split(' ')
+    upgradecmd = 'pip install -U'.split(' ')
+
+    # Select the appropriate pip command if performing package upgrade.
+    if isupgrade:
+        action = 'upgrade'
+        pipcmd = upgradecmd
+    else:
+        action = 'install'
+        pipcmd = installcmd
 
     # The subprocess.PIPE hides the command output from the user so printing
     # is needed as an additional step.
-    output = subprocess.run(['pip', 'install'] + pkgs.split(','),
+    output = subprocess.run(pipcmd + pkgs.split(','),
                             stdout=subprocess.PIPE,
                             universal_newlines=True)
     print(output.stdout)
@@ -117,7 +129,7 @@ def install_packages(pkgs):
             ipkgs = line.replace('-', '==').split(' ')[2:]
 
             # Record transaction in both database and log file.
-            insert_transaction('install', ipkgs)
+            insert_transaction(action, ipkgs)
             for ipkg in ipkgs:
                 pmlogger.info('Installed %s', ipkg)
 
@@ -153,7 +165,7 @@ if __name__ == '__main__':
     # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('-v', '--version', action='version', version=str(VERSION),
-                        help='Print version number then exit.')
+                        help='Print version number then exit')
 
     # Subparsers are used to ignore the leading hypen for the first argument.
     actions = parser.add_subparsers(dest='action')
@@ -163,7 +175,7 @@ if __name__ == '__main__':
     action_install = actions.add_parser('install',
                                         help='Install packages.')
     action_uninstall = actions.add_parser('uninstall',
-                                          help='Unnstall packages.')
+                                          help='Unnstall packages')
     action_history = actions.add_parser('history',
                                         help='Transaction history data')
 
@@ -171,6 +183,9 @@ if __name__ == '__main__':
     action_install.add_argument('-p', '--pkgs',
                                 action='store',
                                 help='List of packages to install')
+    action_install.add_argument('-u', '--upgrade',
+                                action='store_true',
+                                help='Upgrade specified packages')
 
     action_uninstall.add_argument('-p', '--pkgs',
                                   action='store',
@@ -192,9 +207,13 @@ if __name__ == '__main__':
 
     # Run appropriate function based on provided arguments.
     if args.action == 'install':
-        install_package(args.pkgs)
+        if args.upgrade and not args.pkgs:
+            print('Package list required for upgrade.')
+            print('Please add the -p option with a list of packages and retry.')
+        else:
+            install_packages(args.pkgs, args.upgrade)
     elif args.action == 'uninstall':
-        uninstall_package(args.pkgs)
+        uninstall_packages(args.pkgs)
     elif args.action == 'history':
         if args.info:
             get_transaction(str(args.info))
