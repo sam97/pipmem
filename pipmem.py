@@ -121,17 +121,19 @@ def install_packages(pkgs, isupgrade=False):
                             universal_newlines=True)
     print(output.stdout)
 
-    # Search for a notification of successfully installed packages in output
-    for line in output.stdout.split('\n'):
-        if 'Successfully installed' in line:
-            # Split the output line to gather specific package information.
-            # Simulate requirements.txt format by replacing the hypens.
-            ipkgs = line.replace('-', '==').split(' ')[2:]
+    if output.returncode == 0:
+        # Search for a notification of successfully installed packages in
+        # output to determine installed packages list.
+        for line in output.stdout.split('\n'):
+            if 'Successfully installed' in line:
+                # Split the output line to gather specific package information.
+                # Simulate requirements.txt format by replacing the hypens.
+                ipkgs = line.replace('-', '==').split(' ')[2:]
 
-            # Record transaction in both database and log file.
-            insert_transaction(action, ipkgs)
-            for ipkg in ipkgs:
-                pmlogger.info('Installed %s', ipkg)
+                # Record transaction in both database and log file.
+                insert_transaction(action, ipkgs)
+                for ipkg in ipkgs:
+                    pmlogger.info('Installed %s', ipkg)
 
 
 def uninstall_packages(pkgs):
@@ -144,18 +146,19 @@ def uninstall_packages(pkgs):
                             universal_newlines=True)
     print(output.stdout)
 
-    # The uninstall process outputs to separate lines unlike installation.
-    # Check each line and simulate requirements.txt format, then add the
-    # package data to the upkgs list.
-    upkgs = []
-    for line in output.stdout.split('\n'):
-        if 'Successfully uninstalled' in line:
-            upkgs.append(line.replace('-', '==').split(' ')[4])
+    if output.returncode == 0:
+        # The uninstall process outputs to separate lines unlike installation.
+        # Check each line and simulate requirements.txt format, then add the
+        # package data to the upkgs list.
+        upkgs = []
+        for line in output.stdout.split('\n'):
+            if 'Successfully uninstalled' in line:
+                upkgs.append(line.replace('-', '==').split(' ')[4])
 
-    # Record transaction in both database and log file.
-    insert_transaction('uninstall', upkgs)
-    for upkg in upkgs:
-        pmlogger.info('Uninstalled %s', upkg)
+        # Record transaction in both database and log file.
+        insert_transaction('uninstall', upkgs)
+        for upkg in upkgs:
+            pmlogger.info('Uninstalled %s', upkg)
 
 
 if __name__ == '__main__':
@@ -164,7 +167,8 @@ if __name__ == '__main__':
 
     # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('-v', '--version', action='version', version=str(VERSION),
+    parser.add_argument('-v', '--version', action='version',
+                        version=str(VERSION),
                         help='Print version number then exit')
 
     # Subparsers are used to ignore the leading hypen for the first argument.
@@ -185,7 +189,8 @@ if __name__ == '__main__':
                                 help='List of packages to install')
     action_install.add_argument('-u', '--upgrade',
                                 action='store_true',
-                                help='Upgrade specified packages')
+                                help='Upgrade specified packages to the '
+                                     'latest available version')
 
     action_uninstall.add_argument('-p', '--pkgs',
                                   action='store',
@@ -209,7 +214,8 @@ if __name__ == '__main__':
     if args.action == 'install':
         if args.upgrade and not args.pkgs:
             print('Package list required for upgrade.')
-            print('Please add the -p option with a list of packages and retry.')
+            print('Please add the -p option with a list of packages and '
+                  'retry.')
         else:
             install_packages(args.pkgs, args.upgrade)
     elif args.action == 'uninstall':
