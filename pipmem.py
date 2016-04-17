@@ -18,34 +18,42 @@ pmdbfile = 'pipmem.db'
 
 
 def setupdb():
+    """ Create the sqlite3 database and appropriate tables.
+
+        venv variable is used to store any activated venv in order to operate
+        on its packages instead of the system packages. """
     conn = sqlite3.connect(pmdbfile)
     conn.execute('CREATE TABLE transactions ( \
                  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \
                  timestamp TEXT NOT NULL, \
                  action TEXT NOT NULL, \
-                 pkgs TEXT NOT NULL, \
-                 venv TEXT)')
+                 venv TEXT NULL, \
+                 pkgs TEXT NOT NULL)')
 
 
-def insert_transaction(action, pkgs):
+def insert_transaction(action, pkgs, venv=None):
+    """ Insert data for the given operation into the database. 
+        Include data on the packages modified and venv activated if any. """
+
     now = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pkgs = ','.join(pkgs)
 
     conn = sqlite3.connect(pmdbfile)
-    conn.execute('INSERT INTO transactions (timestamp, action, pkgs, venv) \
-                 VALUES (?, ?, ?, ?)', (now, action, pkgs, None))
+    conn.execute('INSERT INTO transactions (timestamp, action, venv, pkgs) \
+                 VALUES (?, ?, ?, ?)', (now, action, venv, pkgs))
     conn.commit()
     conn.close()
 
 
-def show_history():
+def show_history(size=10):
     conn = sqlite3.connect(pmdbfile)
     cur = conn.cursor()
     cur.execute('SELECT id,timestamp,action FROM transactions \
                 ORDER BY id DESC')
-    transactions = cur.fetchmany(10)
+    transactions = cur.fetchmany(size)
     conn.close()
 
+    # Use string justification here to ensure neat column output to the screen.
     print('Last 10 transactions performed\n')
     print('ID'.ljust(8), '|', 'Timestamp'.ljust(20), '|', 'Action'.ljust(20))
     print('-' * 48)
@@ -64,9 +72,9 @@ def get_transaction(id):
         print('ID: %s' % transaction[0])
         print('Timestamp: %s' % transaction[1])
         print('Action: %s' % transaction[2])
-        print('venv: %s' % transaction[4])
+        print('venv: %s' % transaction[3])
         print('Packages:')
-        for pkg in transaction[3].split(','):
+        for pkg in transaction[4].split(','):
             print('\t%s' % pkg)
     else:
         print('No transaction with ID %s found' % id)
@@ -83,33 +91,53 @@ def undo_transaction(id):
     pkgs = transaction[1].replace('-', '==')
 
     if action == 'install':
-        uninstall_package(pkgs)
+        uninstall_packages(pkgs)
     elif action == 'uninstall':
-        install_package(pkgs)
+        install_packages(pkgs)
 
 
-def install_package(pkgs):
+def install_packages(pkgs):
+    """ Use pip to install the given packages. """
+
+    # The subprocess.PIPE hides the command output from the user so printing
+    # is needed as an additional step.
     output = subprocess.run(['pip', 'install'] + pkgs.split(','),
                             stdout=subprocess.PIPE,
                             universal_newlines=True)
     print(output.stdout)
+
+    # Search for a notification of successfully installed packages in output
     for line in output.stdout.split('\n'):
         if 'Successfully installed' in line:
+            # Split the output line to gather specific package information.
+            # Simulate requirements.txt format by replacing the hypens.
             ipkgs = line.replace('-', '==').split(' ')[2:]
+
+            # Record transaction in both database and log file.
             insert_transaction('install', ipkgs)
             for ipkg in ipkgs:
                 pmlogger.info('Installed %s', ipkg)
 
 
-def uninstall_package(pkgs):
+def uninstall_packages(pkgs):
+    """ Use pip to uninstall the given packages. """
+
+    # The subprocess.PIPE hides the command output from the user so printing
+    # is needed as an additional step.
     output = subprocess.run(['pip', 'uninstall', '-y'] + pkgs.split(','),
                             stdout=subprocess.PIPE,
                             universal_newlines=True)
     print(output.stdout)
+
+    # The uninstall process outputs to separate lines unlike installation.
+    # Check each line and simulate requirements.txt format, then add the
+    # package data to the upkgs list.
     upkgs = []
     for line in output.stdout.split('\n'):
         if 'Successfully uninstalled' in line:
             upkgs.append(line.replace('-', '==').split(' ')[4])
+
+    # Record transaction in both database and log file.
     insert_transaction('uninstall', upkgs)
     for upkg in upkgs:
         pmlogger.info('Uninstalled %s', upkg)
@@ -118,24 +146,31 @@ def uninstall_package(pkgs):
 if __name__ == '__main__':
     desc = 'pipmem is used to keep track of action performed by the pip \
             package manager.'
+
+    # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
+
+    # Subparsers are used to ignore the leading hypen for the first argument.
     actions = parser.add_subparsers(dest='action')
     actions.required = True
+
+    # Application action definitions.
     action_install = actions.add_parser('install',
                                         help='Install packages.')
+    action_uninstall = actions.add_parser('uninstall',
+                                          help='Unnstall packages.')
+    action_history = actions.add_parser('history',
+                                        help='Transaction history data')
+
+    # Arguments for each action specified below.
     action_install.add_argument('-p', '--pkgs',
                                 action='store',
                                 help='List of packages to install')
 
-    action_uninstall = actions.add_parser('uninstall',
-                                          help='Unnstall packages.')
     action_uninstall.add_argument('-p', '--pkgs',
                                   action='store',
                                   help='List of packages to install')
 
-    action_history = actions.add_parser('history',
-                                        help='Transaction history data')
-    action_history.set_defaults(func=show_history)
     action_history.add_argument('-i', '--info',
                                 type=int,
                                 help='Show history details for ID')
@@ -143,11 +178,14 @@ if __name__ == '__main__':
                                 type=int,
                                 help='Undo transaction with ID')
 
+    # Collect application arguments into the args variable.
     args = parser.parse_args()
 
+    # Create the application database if it does not already exist.
     if not os.path.exists(pmdbfile):
         setupdb()
 
+    # Run appropriate function based on provided arguments.
     if args.action == 'install':
         install_package(args.pkgs)
     elif args.action == 'uninstall':
