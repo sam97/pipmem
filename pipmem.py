@@ -5,6 +5,8 @@ import os
 import sqlite3
 import subprocess
 
+VERSION = 0.1
+
 # Create logger object and set appropriate format and filename
 pmlogger = logging.getLogger('pipmem')
 pmlogger.setLevel(logging.INFO)
@@ -22,6 +24,7 @@ def setupdb():
 
         venv variable is used to store any activated venv in order to operate
         on its packages instead of the system packages. """
+
     conn = sqlite3.connect(pmdbfile)
     conn.execute('CREATE TABLE transactions ( \
                  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \
@@ -32,7 +35,7 @@ def setupdb():
 
 
 def insert_transaction(action, pkgs, venv=None):
-    """ Insert data for the given operation into the database. 
+    """ Insert data for the given operation into the database.
         Include data on the packages modified and venv activated if any. """
 
     now = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -149,6 +152,8 @@ if __name__ == '__main__':
 
     # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('-v', '--version', action='version', version=str(VERSION),
+                        help='Print version number then exit.')
 
     # Subparsers are used to ignore the leading hypen for the first argument.
     actions = parser.add_subparsers(dest='action')
@@ -172,10 +177,10 @@ if __name__ == '__main__':
                                   help='List of packages to install')
 
     action_history.add_argument('-i', '--info',
-                                type=int,
+                                type=int, metavar='ID',
                                 help='Show history details for ID')
     action_history.add_argument('-u', '--undo',
-                                type=int,
+                                type=int, metavar='ID',
                                 help='Undo transaction with ID')
 
     # Collect application arguments into the args variable.
