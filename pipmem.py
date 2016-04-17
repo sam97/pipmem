@@ -90,6 +90,9 @@ def get_transaction(id):
 
 
 def undo_transaction(id):
+    """ Determine transaction action and package list, then perform the
+        opposite action on the same package list. """
+
     conn = sqlite3.connect(pmdbfile)
     cur = conn.cursor()
     cur.execute('SELECT action,pkgs FROM transactions WHERE ID is (?)', (id,))
