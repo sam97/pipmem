@@ -32,6 +32,8 @@ def setupdb():
                  action TEXT NOT NULL, \
                  venv TEXT NULL, \
                  pkgs TEXT NOT NULL)')
+    conn.commit()
+    conn.close()
 
 
 def insert_transaction(action, pkgs, venv=None):
@@ -162,6 +164,10 @@ def uninstall_packages(pkgs):
 
 
 if __name__ == '__main__':
+    # Create the application database if it does not already exist.
+    if not os.path.exists(pmdbfile):
+        setupdb()
+
     desc = 'pipmem is used to keep track of action performed by the pip \
             package manager.'
 
@@ -205,10 +211,6 @@ if __name__ == '__main__':
 
     # Collect application arguments into the args variable.
     args = parser.parse_args()
-
-    # Create the application database if it does not already exist.
-    if not os.path.exists(pmdbfile):
-        setupdb()
 
     # Run appropriate function based on provided arguments.
     if args.action == 'install':
