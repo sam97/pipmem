@@ -51,6 +51,8 @@ def insert_transaction(action, pkgs, venv=None):
 
 
 def show_history(size=10):
+    """ Show a summary of the most recent transaations performed. """
+
     conn = sqlite3.connect(pmdbfile)
     cur = conn.cursor()
     cur.execute('SELECT id,timestamp,action FROM transactions \
@@ -67,6 +69,8 @@ def show_history(size=10):
 
 
 def get_transaction(id):
+    """ Show information on the specified transaction. """
+
     conn = sqlite3.connect(pmdbfile)
     cur = conn.cursor()
     cur.execute('SELECT * FROM transactions WHERE ID is (?)', (id,))
