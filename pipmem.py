@@ -40,12 +40,13 @@ def setupdb():
         print('Unable to initialize pipmem database.')
 
 
-def insert_transaction(action, pkgs, venv=None):
+def insert_transaction(action, pkgs):
     """ Insert data for the given operation into the database.
         Include data on the packages modified and venv activated if any. """
 
     now = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pkgs = ','.join(pkgs)
+    venv = os.environ['VIRTUAL_ENV']
 
     try:
         conn = sqlite3.connect(pmdbfile)
@@ -142,7 +143,7 @@ def undo_transaction(id):
         pm_logger.error('Permission denied to pipmem.db.')
 
 
-def install_packages(pkgs, is_upgrade=False):
+def install_packages(pkgs, is_upgrade=False, venv=None):
     """ Use pip to install the given packages. """
 
     # Predefine pip commands being used.
@@ -150,7 +151,7 @@ def install_packages(pkgs, is_upgrade=False):
     upgradecmd = 'pip install -U'.split(' ')
 
     # Select the appropriate pip command if performing package upgrade.
-    if isupgrade:
+    if is_upgrade:
         action = 'upgrade'
         pipcmd = upgradecmd
     else:
