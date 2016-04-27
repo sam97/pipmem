@@ -8,13 +8,13 @@ import subprocess
 VERSION = 0.1
 
 # Create logger object and set appropriate format and filename
-pmlogger = logging.getLogger('pipmem')
-pmlogger.setLevel(logging.INFO)
+pm_logger = logging.getLogger('pipmem')
+pm_logger.setLevel(logging.INFO)
 pmlogformat = logging.Formatter('%(asctime)s %(message)s',
                                 datefmt='%Y-%m-%d %H:%M:%S')
-pmloghandler = logging.FileHandler('pipmem.log')
-pmloghandler.setFormatter(pmlogformat)
-pmlogger.addHandler(pmloghandler)
+pm_log_handler = logging.FileHandler('pipmem.log')
+pm_log_handler.setFormatter(pmlogformat)
+pm_logger.addHandler(pm_log_handler)
 
 pmdbfile = 'pipmem.db'
 
@@ -73,7 +73,7 @@ def get_transaction(id):
 
     conn = sqlite3.connect(pmdbfile)
     cur = conn.cursor()
-    cur.execute('SELECT * FROM transactions WHERE ID is (?)', (id,))
+    cur.execute('SELECT * FROM transactions WHERE ID = (?)', (id,))
     transaction = cur.fetchone()
     conn.close()
 
@@ -108,7 +108,7 @@ def undo_transaction(id):
         install_packages(pkgs)
 
 
-def install_packages(pkgs, isupgrade=False):
+def install_packages(pkgs, is_upgrade=False):
     """ Use pip to install the given packages. """
 
     # Predefine pip commands being used.
@@ -142,7 +142,7 @@ def install_packages(pkgs, isupgrade=False):
                 # Record transaction in both database and log file.
                 insert_transaction(action, ipkgs)
                 for ipkg in ipkgs:
-                    pmlogger.info('Installed %s', ipkg)
+                    pm_logger.info('Installed %s', ipkg)
 
 
 def uninstall_packages(pkgs):
@@ -167,7 +167,7 @@ def uninstall_packages(pkgs):
         # Record transaction in both database and log file.
         insert_transaction('uninstall', upkgs)
         for upkg in upkgs:
-            pmlogger.info('Uninstalled %s', upkg)
+            pm_logger.info('Uninstalled %s', upkg)
 
 
 if __name__ == '__main__':
