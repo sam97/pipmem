@@ -40,13 +40,17 @@ def setupdb():
         print('Unable to initialize pipmem database.')
 
 
-def insert_transaction(action, pkgs):
+def insert_transaction(action, pkgs, venv=None):
     """ Insert data for the given operation into the database.
         Include data on the packages modified and venv activated if any. """
 
     now = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pkgs = ','.join(pkgs)
-    venv = os.environ['VIRTUAL_ENV']
+    try:
+        if os.environ['VIRTUAL_ENV']:
+            venv = os.environ['VIRTUAL_ENV']
+    except:
+        pass
 
     try:
         conn = sqlite3.connect(pmdbfile)
@@ -57,9 +61,6 @@ def insert_transaction(action, pkgs):
     except FileNotFoundError:
         print('Unable to find pipmem.db. Attempting creation of new database.')
         setupdb()
-    except PermissionDeniedError:
-        print('Permission denied to pipmem.db.')
-        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def show_history(size=10):
@@ -83,9 +84,6 @@ def show_history(size=10):
     except FileNotFoundError:
         print('Unable to find pipmem.db. Attempting creation of new database.')
         setupdb()
-    except PermissionDeniedError:
-        print('Permission denied to pipmem.db.')
-        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def get_transaction(id):
@@ -111,9 +109,6 @@ def get_transaction(id):
     except FileNotFoundError:
         print('Unable to find pipmem.db. Attempting creation of new database.')
         setupdb()
-    except PermissionDeniedError:
-        print('Permission denied to pipmem.db.')
-        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def undo_transaction(id):
@@ -123,32 +118,43 @@ def undo_transaction(id):
     try:
         conn = sqlite3.connect(pmdbfile)
         cur = conn.cursor()
-        cur.execute('SELECT action,pkgs FROM transactions WHERE ID is (?)',
+        cur.execute('SELECT action,venv,pkgs FROM transactions WHERE ID is (?)',
                     (id,))
         transaction = cur.fetchone()
         conn.close()
 
         action = transaction[0]
-        pkgs = transaction[1].replace('-', '==')
+        venv = transaction [1]
+        pkgs = transaction[2].replace('-', '==')
 
         if action == 'install':
-            uninstall_packages(pkgs)
+            uninstall_packages(pkgs, venv=venv)
         elif action == 'uninstall':
-            install_packages(pkgs)
+            install_packages(pkgs, venv=venv)
     except FileNotFoundError:
         print('Unable to find pipmem.db. Attempting creation of new database.')
         setupdb()
-    except PermissionDeniedError:
-        print('Permission denied to pipmem.db.')
-        pm_logger.error('Permission denied to pipmem.db.')
+
+
+def configure_venv_path(venv):
+    """ Properly return pip location to run for the given venv. """
+
+    if os.name == 'nt':
+        return os.path.abspath(os.path.join(venv, 'scripts', 'pip.exe'))
+    elif os.name == 'posix':
+        return os.path.abspath(os.path.join(venv, 'bin', 'pip'))
 
 
 def install_packages(pkgs, is_upgrade=False, venv=None):
     """ Use pip to install the given packages. """
 
     # Predefine pip commands being used.
-    installcmd = 'pip install'.split(' ')
-    upgradecmd = 'pip install -U'.split(' ')
+    if venv:
+        installcmd = (configure_venv_path(venv) + ' install').split(' ')
+        upgradecmd = (configure_venv_path(venv) + ' install -U').split(' ')
+    else:
+        installcmd = 'pip install'.split(' ')
+        upgradecmd = 'pip install -U'.split(' ')
 
     # Select the appropriate pip command if performing package upgrade.
     if is_upgrade:
@@ -175,17 +181,23 @@ def install_packages(pkgs, is_upgrade=False, venv=None):
                 ipkgs = line.replace('-', '==').split(' ')[2:]
 
                 # Record transaction in both database and log file.
-                insert_transaction(action, ipkgs)
+                insert_transaction(action, ipkgs, venv)
                 for ipkg in ipkgs:
                     pm_logger.info('Installed %s', ipkg)
 
 
-def uninstall_packages(pkgs):
+def uninstall_packages(pkgs, venv=None):
     """ Use pip to uninstall the given packages. """
+    
+    # Predefine pip commands being used.
+    if venv:
+        erasecmd = (configure_venv_path(venv) + ' uninstall -y').split(' ')
+    else:
+        erasecmd = 'pip uninstall -y'.split(' ')
 
     # The subprocess.PIPE hides the command output from the user so printing
     # is needed as an additional step.
-    output = subprocess.run(['pip', 'uninstall', '-y'] + pkgs.split(','),
+    output = subprocess.run(erasecmd + pkgs.split(','),
                             stdout=subprocess.PIPE,
                             universal_newlines=True)
     print(output.stdout)
@@ -200,7 +212,7 @@ def uninstall_packages(pkgs):
                 upkgs.append(line.replace('-', '==').split(' ')[4])
 
         # Record transaction in both database and log file.
-        insert_transaction('uninstall', upkgs)
+        insert_transaction('uninstall', upkgs, venv)
         for upkg in upkgs:
             pm_logger.info('Uninstalled %s', upkg)
 
@@ -247,7 +259,7 @@ if __name__ == '__main__':
     action_history.add_argument('-i', '--info',
                                 type=int, metavar='ID',
                                 help='Show history details for ID')
-    action_history.add_argument('-u', '--undo',
+    action_history.add_argument('--undo',
                                 type=int, metavar='ID',
                                 help='Undo transaction with ID')
 
