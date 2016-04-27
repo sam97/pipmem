@@ -5,7 +5,7 @@ import os
 import sqlite3
 import subprocess
 
-VERSION = 0.1
+VERSION = 0.2
 
 # Create logger object and set appropriate format and filename
 pm_logger = logging.getLogger('pipmem')
