@@ -25,15 +25,19 @@ def setupdb():
         venv variable is used to store any activated venv in order to operate
         on its packages instead of the system packages. """
 
-    conn = sqlite3.connect(pmdbfile)
-    conn.execute('CREATE TABLE transactions ( \
-                 id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \
-                 timestamp TEXT NOT NULL, \
-                 action TEXT NOT NULL, \
-                 venv TEXT NULL, \
-                 pkgs TEXT NOT NULL)')
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(pmdbfile)
+        conn.execute('CREATE TABLE transactions ( \
+                     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \
+                     timestamp TEXT NOT NULL, \
+                     action TEXT NOT NULL, \
+                     venv TEXT NULL, \
+                     pkgs TEXT NOT NULL)')
+        conn.commit()
+        conn.close()
+    except:
+        pm_logger.error('Unable to initialize pipmem database.')
+        print('Unable to initialize pipmem database.')
 
 
 def insert_transaction(action, pkgs, venv=None):
@@ -43,69 +47,99 @@ def insert_transaction(action, pkgs, venv=None):
     now = str(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     pkgs = ','.join(pkgs)
 
-    conn = sqlite3.connect(pmdbfile)
-    conn.execute('INSERT INTO transactions (timestamp, action, venv, pkgs) \
-                 VALUES (?, ?, ?, ?)', (now, action, venv, pkgs))
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(pmdbfile)
+        conn.execute('INSERT INTO transactions (timestamp, action, venv, pkgs) \
+                     VALUES (?, ?, ?, ?)', (now, action, venv, pkgs))
+        conn.commit()
+        conn.close()
+    except FileNotFoundError:
+        print('Unable to find pipmem.db. Attempting creation of new database.')
+        setupdb()
+    except PermissionDeniedError:
+        print('Permission denied to pipmem.db.')
+        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def show_history(size=10):
     """ Show a summary of the most recent transaations performed. """
 
-    conn = sqlite3.connect(pmdbfile)
-    cur = conn.cursor()
-    cur.execute('SELECT id,timestamp,action FROM transactions \
-                ORDER BY id DESC')
-    transactions = cur.fetchmany(size)
-    conn.close()
+    try:
+        conn = sqlite3.connect(pmdbfile)
+        cur = conn.cursor()
+        cur.execute('SELECT id,timestamp,action FROM transactions \
+                    ORDER BY id DESC')
+        transactions = cur.fetchmany(size)
+        conn.close()
 
-    # Use string justification here to ensure neat column output to the screen.
-    print('Last 10 transactions performed\n')
-    print('ID'.ljust(8), '|', 'Timestamp'.ljust(20), '|', 'Action'.ljust(20))
-    print('-' * 48)
-    for t in transactions:
-        print(str(t[0]).ljust(8), '|', t[1].ljust(20), '|', t[2].ljust(20))
+        # Use string justification here to ensure neat column output.
+        print('Last 10 transactions performed\n')
+        print('ID'.ljust(8), '|', 'Timestamp'.ljust(20), '|',
+              'Action'.ljust(20))
+        print('-' * 48)
+        for t in transactions:
+            print(str(t[0]).ljust(8), '|', t[1].ljust(20), '|', t[2].ljust(20))
+    except FileNotFoundError:
+        print('Unable to find pipmem.db. Attempting creation of new database.')
+        setupdb()
+    except PermissionDeniedError:
+        print('Permission denied to pipmem.db.')
+        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def get_transaction(id):
     """ Show information on the specified transaction. """
 
-    conn = sqlite3.connect(pmdbfile)
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM transactions WHERE ID = (?)', (id,))
-    transaction = cur.fetchone()
-    conn.close()
+    try:
+        conn = sqlite3.connect(pmdbfile)
+        cur = conn.cursor()
+        cur.execute('SELECT * FROM transactions WHERE ID = (?)', (id,))
+        transaction = cur.fetchone()
+        conn.close()
 
-    if transaction:
-        print('ID: %s' % transaction[0])
-        print('Timestamp: %s' % transaction[1])
-        print('Action: %s' % transaction[2])
-        print('venv: %s' % transaction[3])
-        print('Packages:')
-        for pkg in transaction[4].split(','):
-            print('\t%s' % pkg)
-    else:
-        print('No transaction with ID %s found' % id)
+        if transaction:
+            print('ID: %s' % transaction[0])
+            print('Timestamp: %s' % transaction[1])
+            print('Action: %s' % transaction[2])
+            print('venv: %s' % transaction[3])
+            print('Packages:')
+            for pkg in transaction[4].split(','):
+                print('\t%s' % pkg)
+        else:
+            print('No transaction with ID %s found' % id)
+    except FileNotFoundError:
+        print('Unable to find pipmem.db. Attempting creation of new database.')
+        setupdb()
+    except PermissionDeniedError:
+        print('Permission denied to pipmem.db.')
+        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def undo_transaction(id):
     """ Determine transaction action and package list, then perform the
         opposite action on the same package list. """
 
-    conn = sqlite3.connect(pmdbfile)
-    cur = conn.cursor()
-    cur.execute('SELECT action,pkgs FROM transactions WHERE ID is (?)', (id,))
-    transaction = cur.fetchone()
-    conn.close()
+    try:
+        conn = sqlite3.connect(pmdbfile)
+        cur = conn.cursor()
+        cur.execute('SELECT action,pkgs FROM transactions WHERE ID is (?)',
+                    (id,))
+        transaction = cur.fetchone()
+        conn.close()
 
-    action = transaction[0]
-    pkgs = transaction[1].replace('-', '==')
+        action = transaction[0]
+        pkgs = transaction[1].replace('-', '==')
 
-    if action == 'install':
-        uninstall_packages(pkgs)
-    elif action == 'uninstall':
-        install_packages(pkgs)
+        if action == 'install':
+            uninstall_packages(pkgs)
+        elif action == 'uninstall':
+            install_packages(pkgs)
+    except FileNotFoundError:
+        print('Unable to find pipmem.db. Attempting creation of new database.')
+        setupdb()
+    except PermissionDeniedError:
+        print('Permission denied to pipmem.db.')
+        pm_logger.error('Permission denied to pipmem.db.')
 
 
 def install_packages(pkgs, is_upgrade=False):
