@@ -5,18 +5,31 @@ import os
 import sqlite3
 import subprocess
 
-VERSION = 0.2
+VERSION = 0.3
+
+if os.name == 'posix':
+    pipmem_datadir = os.path.join(os.environ['HOME'], '.pipmem')
+    log_path = os.path.join(pipmem_datadir, 'pipmem.log')
+    pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
+elif os.name == 'nt':
+    pipmem_datadir = os.path.join(os.environ['HOMEPATH'], '.pipmem')
+    log_path = os.path.join(pipmem_datadir, 'pipmem.log')
+    pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
+
+try:
+    if not os.path.exists(pipmem_datadir):
+        os.mkdir(pipmem_datadir)
+except:
+    pass
 
 # Create logger object and set appropriate format and filename
 pm_logger = logging.getLogger('pipmem')
 pm_logger.setLevel(logging.INFO)
 pmlogformat = logging.Formatter('%(asctime)s %(message)s',
                                 datefmt='%Y-%m-%d %H:%M:%S')
-pm_log_handler = logging.FileHandler('pipmem.log')
+pm_log_handler = logging.FileHandler(log_path)
 pm_log_handler.setFormatter(pmlogformat)
 pm_logger.addHandler(pm_log_handler)
-
-pmdbfile = 'pipmem.db'
 
 
 def setupdb():
@@ -26,7 +39,7 @@ def setupdb():
         on its packages instead of the system packages. """
 
     try:
-        conn = sqlite3.connect(pmdbfile)
+        conn = sqlite3.connect(pipmem_db)
         conn.execute('CREATE TABLE transactions ( \
                      id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, \
                      timestamp TEXT NOT NULL, \
@@ -53,7 +66,7 @@ def insert_transaction(action, pkgs, venv=None):
         pass
 
     try:
-        conn = sqlite3.connect(pmdbfile)
+        conn = sqlite3.connect(pipmem_db)
         conn.execute('INSERT INTO transactions (timestamp, action, venv, pkgs) \
                      VALUES (?, ?, ?, ?)', (now, action, venv, pkgs))
         conn.commit()
@@ -67,7 +80,7 @@ def show_history(size=10):
     """ Show a summary of the most recent transaations performed. """
 
     try:
-        conn = sqlite3.connect(pmdbfile)
+        conn = sqlite3.connect(pipmem_db)
         cur = conn.cursor()
         cur.execute('SELECT id,timestamp,action FROM transactions \
                     ORDER BY id DESC')
@@ -90,7 +103,7 @@ def get_transaction(id):
     """ Show information on the specified transaction. """
 
     try:
-        conn = sqlite3.connect(pmdbfile)
+        conn = sqlite3.connect(pipmem_db)
         cur = conn.cursor()
         cur.execute('SELECT * FROM transactions WHERE ID = (?)', (id,))
         transaction = cur.fetchone()
@@ -116,7 +129,7 @@ def undo_transaction(id):
         opposite action on the same package list. """
 
     try:
-        conn = sqlite3.connect(pmdbfile)
+        conn = sqlite3.connect(pipmem_db)
         cur = conn.cursor()
         cur.execute('SELECT action,venv,pkgs FROM transactions '
                     'WHERE ID is (?)',
@@ -220,7 +233,7 @@ def uninstall_packages(pkgs, venv=None):
 
 def main():
     # Create the application database if it does not already exist.
-    if not os.path.exists(pmdbfile):
+    if not os.path.exists(pipmem_db):
         setupdb()
 
     desc = 'pipmem is used to keep track of action performed by the pip \
