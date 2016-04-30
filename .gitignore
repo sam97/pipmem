@@ -1,4 +1,7 @@
 *.db
 *.log
+*.pyc
 *.txt
 venv/
+dist/
+/*.egg-info
