@@ -118,13 +118,14 @@ def undo_transaction(id):
     try:
         conn = sqlite3.connect(pmdbfile)
         cur = conn.cursor()
-        cur.execute('SELECT action,venv,pkgs FROM transactions WHERE ID is (?)',
+        cur.execute('SELECT action,venv,pkgs FROM transactions '
+                    'WHERE ID is (?)',
                     (id,))
         transaction = cur.fetchone()
         conn.close()
 
         action = transaction[0]
-        venv = transaction [1]
+        venv = transaction[1]
         pkgs = transaction[2].replace('-', '==')
 
         if action == 'install':
@@ -188,7 +189,7 @@ def install_packages(pkgs, is_upgrade=False, venv=None):
 
 def uninstall_packages(pkgs, venv=None):
     """ Use pip to uninstall the given packages. """
-    
+
     # Predefine pip commands being used.
     if venv:
         erasecmd = (configure_venv_path(venv) + ' uninstall -y').split(' ')
@@ -217,7 +218,7 @@ def uninstall_packages(pkgs, venv=None):
             pm_logger.info('Uninstalled %s', upkg)
 
 
-if __name__ == '__main__':
+def main():
     # Create the application database if it does not already exist.
     if not os.path.exists(pmdbfile):
         setupdb()
@@ -283,3 +284,6 @@ if __name__ == '__main__':
             undo_transaction(str(args.undo))
         else:
             show_history()
+
+if __name__ == '__main__':
+    main()
