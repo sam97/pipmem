@@ -241,7 +241,7 @@ def main():
 
     # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
-    parser.add_argument('-v', '--version', action='version',
+    parser.add_argument('-V', '--version', action='version',
                         version=str(VERSION),
                         help='Print version number then exit')
 
