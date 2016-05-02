@@ -37,9 +37,10 @@ The actions are meant to self explanatory but more detail can be seen by passing
 ### Script data location ###
 The script will store its history and logs per user.
 
-**Linux:** /home/<USER\>.pipmem
+**Linux:** `$XDG_DATA_DIR/pipmem`, or the default, `$HOME/.local/share/pipmem`
 
-**Windows (Vista/7/8/10):** C:\Users\\<USER\>\.pipmem
+
+**Windows (Vista/7/8/10):** `%HOMEPATH%\.pipmem`
 
 pipmem.db is the sqlite3 database containing history data including virtual environment and packages modified.
 

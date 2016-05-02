@@ -8,19 +8,18 @@ import subprocess
 VERSION = 0.3
 
 if os.name == 'posix':
-    pipmem_datadir = os.path.join(os.environ['HOME'], '.pipmem')
+    from xdg import BaseDirectory
+    pipmem_datadir = BaseDirectory.save_data_path('pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 elif os.name == 'nt':
     pipmem_datadir = os.path.join(os.environ['HOMEPATH'], '.pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
-
-try:
-    if not os.path.exists(pipmem_datadir):
-        os.mkdir(pipmem_datadir)
-except:
-    pass
+    # xdg.BaseDirectory takes care of this on the Linux side,
+    # need to be replicate it on the Windows side of things.
+    if not os.path.isdir(pipmem_datadir):
+        os.makedirs(pipmem_datadir)
 
 # Create logger object and set appropriate format and filename
 pm_logger = logging.getLogger('pipmem')
@@ -253,7 +252,7 @@ def main():
     action_install = actions.add_parser('install',
                                         help='Install packages.')
     action_uninstall = actions.add_parser('uninstall',
-                                          help='Unnstall packages')
+                                          help='Uninstall packages')
     action_history = actions.add_parser('history',
                                         help='Transaction history data')
 
