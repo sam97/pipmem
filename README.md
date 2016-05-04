@@ -49,4 +49,6 @@ pipmem.log is simply a plain text file listing the packages modified without the
 ### Contributing ###
 Please provide any feedback including bugs, errors, requests, or suggestions via issues on this project's GitHub page.
 
-Any pull requests should be made against the dev branch.
+Any pull requests should be made against the dev branch which will be merged during the next stable version bump.
+
+For this script I would like dependencies kept to a minimum so long as it does not cause excess work to do so.
