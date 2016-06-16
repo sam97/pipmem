@@ -253,22 +253,22 @@ def main():
     action_install = actions.add_parser('install',
                                         help='Install packages.')
     action_uninstall = actions.add_parser('uninstall',
-                                          help='Unnstall packages')
+                                          help='Uninstall packages')
     action_history = actions.add_parser('history',
                                         help='Transaction history data')
 
     # Arguments for each action specified below.
-    action_install.add_argument('-p', '--pkgs',
-                                action='store',
+    action_install.add_argument('-p', '--pkgs', required=True,
+                                action='store', metavar='PACKAGES'
                                 help='List of packages to install')
     action_install.add_argument('-u', '--upgrade',
                                 action='store_true',
                                 help='Upgrade specified packages to the '
                                      'latest available version')
 
-    action_uninstall.add_argument('-p', '--pkgs',
-                                  action='store',
-                                  help='List of packages to install')
+    action_uninstall.add_argument('-p', '--pkgs', required=True,
+                                  action='store', metavar='PACKAGES'
+                                  help='List of packages to uninstall')
 
     action_history.add_argument('-i', '--info',
                                 type=int, metavar='ID',
