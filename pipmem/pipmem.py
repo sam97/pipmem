@@ -5,7 +5,7 @@ import os
 import sqlite3
 import subprocess
 
-VERSION = 0.3
+VERSION = '0.3'
 
 if os.name == 'posix':
     pipmem_datadir = os.path.join(os.environ['HOME'], '.pipmem')
@@ -242,7 +242,7 @@ def main():
     # Define the arguments used by the application.
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument('-V', '--version', action='version',
-                        version=str(VERSION),
+                        version=VERSION,
                         help='Print version number then exit')
 
     # Subparsers are used to ignore the leading hypen for the first argument.
@@ -253,27 +253,27 @@ def main():
     action_install = actions.add_parser('install',
                                         help='Install packages.')
     action_uninstall = actions.add_parser('uninstall',
-                                          help='Unnstall packages')
+                                          help='Uninstall packages')
     action_history = actions.add_parser('history',
                                         help='Transaction history data')
 
     # Arguments for each action specified below.
-    action_install.add_argument('-p', '--pkgs',
-                                action='store',
+    action_install.add_argument('-p', '--pkgs', required=True,
+                                action='store', metavar='PACKAGES',
                                 help='List of packages to install')
     action_install.add_argument('-u', '--upgrade',
                                 action='store_true',
                                 help='Upgrade specified packages to the '
                                      'latest available version')
 
-    action_uninstall.add_argument('-p', '--pkgs',
-                                  action='store',
-                                  help='List of packages to install')
+    action_uninstall.add_argument('-p', '--pkgs', required=True,
+                                  action='store', metavar='PACKAGES',
+                                  help='List of packages to uninstall')
 
     action_history.add_argument('-i', '--info',
                                 type=int, metavar='ID',
                                 help='Show history details for ID')
-    action_history.add_argument('--undo',
+    action_history.add_argument('-u', '--undo',
                                 type=int, metavar='ID',
                                 help='Undo transaction with ID')
 
@@ -282,12 +282,7 @@ def main():
 
     # Run appropriate function based on provided arguments.
     if args.action == 'install':
-        if args.upgrade and not args.pkgs:
-            print('Package list required for upgrade.')
-            print('Please add the -p option with a list of packages and '
-                  'retry.')
-        else:
-            install_packages(args.pkgs, args.upgrade)
+        install_packages(args.pkgs, args.upgrade)
     elif args.action == 'uninstall':
         uninstall_packages(args.pkgs)
     elif args.action == 'history':
