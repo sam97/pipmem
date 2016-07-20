@@ -1,5 +1,4 @@
 from setuptools import setup
-import sys
 
 
 def readme():
@@ -14,7 +13,7 @@ setup(name='pipmem',
       url='https://github.com/evitalis/pipmem',
       author='evitalis',
       packages=['pipmem'],
-      install_requires=['pip'] + ['pyxdg'] if sys.platform == 'linux' else [],
+      install_requires=['pip', ],
       entry_points={'console_scripts': ['pipmem=pipmem.pipmem:main']},
       include_package_data=True,
       zip_safe=False)

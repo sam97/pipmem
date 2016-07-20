@@ -8,18 +8,20 @@ import subprocess
 VERSION = 0.3
 
 if os.name == 'posix':
-    from xdg import BaseDirectory
-    pipmem_datadir = BaseDirectory.save_data_path('pipmem')
+    pipmem_datadir = os.path.join(os.getenv('XDG_DATA_HOME', os.path.expanduser('~/.local/share')),
+                                  'pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 elif os.name == 'nt':
     pipmem_datadir = os.path.join(os.environ['HOMEPATH'], '.pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
-    # xdg.BaseDirectory takes care of this on the Linux side,
-    # need to be replicate it on the Windows side of things.
+
+try:
     if not os.path.isdir(pipmem_datadir):
         os.makedirs(pipmem_datadir)
+except:
+    pass
 
 # Create logger object and set appropriate format and filename
 pm_logger = logging.getLogger('pipmem')
