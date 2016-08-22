@@ -14,7 +14,8 @@ except NameError:
     FileNotFoundError = OSError
 
 if os.name == 'posix':
-    pipmem_datadir = os.path.join(os.environ['HOME'], '.pipmem')
+    pipmem_datadir = os.path.join(os.getenv('XDG_DATA_HOME', os.path.expanduser('~/.local/share')),
+                                  'pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 elif os.name == 'nt':
@@ -23,8 +24,8 @@ elif os.name == 'nt':
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 
 try:
-    if not os.path.exists(pipmem_datadir):
-        os.mkdir(pipmem_datadir)
+    if not os.path.isdir(pipmem_datadir):
+        os.makedirs(pipmem_datadir)
 except:
     pass
 
