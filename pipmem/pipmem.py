@@ -1,3 +1,4 @@
+from __future__ import print_function
 import argparse
 import datetime
 import logging
@@ -7,8 +8,14 @@ import subprocess
 
 VERSION = '0.3'
 
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = OSError
+
 if os.name == 'posix':
-    pipmem_datadir = os.path.join(os.environ['HOME'], '.pipmem')
+    pipmem_datadir = os.path.join(os.getenv('XDG_DATA_HOME', os.path.expanduser('~/.local/share')),
+                                  'pipmem')
     log_path = os.path.join(pipmem_datadir, 'pipmem.log')
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 elif os.name == 'nt':
@@ -17,8 +24,8 @@ elif os.name == 'nt':
     pipmem_db = os.path.join(pipmem_datadir, 'pipmem.db')
 
 try:
-    if not os.path.exists(pipmem_datadir):
-        os.mkdir(pipmem_datadir)
+    if not os.path.isdir(pipmem_datadir):
+        os.makedirs(pipmem_datadir)
 except:
     pass
 
@@ -180,15 +187,17 @@ def install_packages(pkgs, is_upgrade=False, venv=None):
 
     # The subprocess.PIPE hides the command output from the user so printing
     # is needed as an additional step.
-    output = subprocess.run(pipcmd + pkgs.split(','),
-                            stdout=subprocess.PIPE,
-                            universal_newlines=True)
-    print(output.stdout)
-
-    if output.returncode == 0:
+    try:
+        output = subprocess.check_output(pipcmd + pkgs.split(','),
+                                         universal_newlines=True)
+        print(output)
+    except subprocess.CalledProcessError:
+        # If pip exited with non-zero returncode, do nothing.
+        pass
+    else:
         # Search for a notification of successfully installed packages in
         # output to determine installed packages list.
-        for line in output.stdout.split('\n'):
+        for line in output.split('\n'):
             if 'Successfully installed' in line:
                 # Split the output line to gather specific package information.
                 # Simulate requirements.txt format by replacing the hypens.
@@ -211,17 +220,19 @@ def uninstall_packages(pkgs, venv=None):
 
     # The subprocess.PIPE hides the command output from the user so printing
     # is needed as an additional step.
-    output = subprocess.run(erasecmd + pkgs.split(','),
-                            stdout=subprocess.PIPE,
-                            universal_newlines=True)
-    print(output.stdout)
-
-    if output.returncode == 0:
+    try:
+        output = subprocess.check_output(erasecmd + pkgs.split(','),
+                                universal_newlines=True)
+        print(output)
+    except subprocess.CalledProcessError:
+        # If pip exited with non-zero returncode, do nothing.
+        pass
+    else:
         # The uninstall process outputs to separate lines unlike installation.
         # Check each line and simulate requirements.txt format, then add the
         # package data to the upkgs list.
         upkgs = []
-        for line in output.stdout.split('\n'):
+        for line in output.split('\n'):
             if 'Successfully uninstalled' in line:
                 upkgs.append(line.replace('-', '==').split(' ')[4])
 
